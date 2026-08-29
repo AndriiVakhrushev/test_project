@@ -67,6 +67,12 @@ Backend docs: [backend/README.md](./backend/README.md).
 
 Frontend docs: [frontend/README.md](./frontend/README.md).
 
+## Role-Based Access Control
+
+This project includes `admin` / `manager` / `member` roles. See
+[RBAC.md](./RBAC.md) for the permission matrix, how authorization is enforced on
+the backend and frontend.
+
 ## Deployment
 
 FastAPI Cloud deployment: [deployment.md](./deployment.md).
