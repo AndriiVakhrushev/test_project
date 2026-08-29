@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app import crud
 from app.core.config import settings
 from app.core.security import verify_password
-from app.models import User, UserCreate
+from app.models import Role, User, UserCreate
 from tests.utils.user import create_random_user
 from tests.utils.utils import random_email, random_lower_string
 
@@ -379,6 +379,91 @@ def test_update_user(
     db.refresh(user_db)
     assert user_db
     assert user_db.full_name == "Updated_full_name"
+
+
+def test_create_user_admin_role_sets_superuser(
+    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+) -> None:
+    with (
+        patch("app.utils.send_email", return_value=None),
+        patch("app.core.config.settings.SMTP_HOST", "smtp.example.com"),
+        patch("app.core.config.settings.SMTP_USER", "admin@example.com"),
+    ):
+        data = {
+            "email": random_email(),
+            "password": random_lower_string(),
+            "role": Role.admin.value,
+        }
+        r = client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=superuser_token_headers,
+            json=data,
+        )
+        assert 200 <= r.status_code < 300
+        user = crud.get_user_by_email(session=db, email=data["email"])
+        assert user is not None
+        assert user.role == Role.admin
+        assert user.is_superuser is True
+
+
+def test_create_user_non_admin_role_clears_superuser(
+    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+) -> None:
+    with (
+        patch("app.utils.send_email", return_value=None),
+        patch("app.core.config.settings.SMTP_HOST", "smtp.example.com"),
+        patch("app.core.config.settings.SMTP_USER", "admin@example.com"),
+    ):
+        data = {
+            "email": random_email(),
+            "password": random_lower_string(),
+            "role": Role.member.value,
+            "is_superuser": True,
+        }
+        r = client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=superuser_token_headers,
+            json=data,
+        )
+        assert 200 <= r.status_code < 300
+        user = crud.get_user_by_email(session=db, email=data["email"])
+        assert user is not None
+        assert user.role == Role.member
+        assert user.is_superuser is False
+
+
+def test_update_user_role_to_admin_sets_superuser(
+    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+) -> None:
+    user = create_random_user(db, role=Role.member)
+    assert user.is_superuser is False
+
+    r = client.patch(
+        f"{settings.API_V1_STR}/users/{user.id}",
+        headers=superuser_token_headers,
+        json={"role": Role.admin.value},
+    )
+    assert r.status_code == 200
+    db.refresh(user)
+    assert user.role == Role.admin
+    assert user.is_superuser is True
+
+
+def test_update_user_role_to_member_clears_superuser(
+    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+) -> None:
+    user = create_random_user(db, role=Role.admin)
+    assert user.is_superuser is True
+
+    r = client.patch(
+        f"{settings.API_V1_STR}/users/{user.id}",
+        headers=superuser_token_headers,
+        json={"role": Role.member.value},
+    )
+    assert r.status_code == 200
+    db.refresh(user)
+    assert user.role == Role.member
+    assert user.is_superuser is False
 
 
 def test_update_user_not_exists(
