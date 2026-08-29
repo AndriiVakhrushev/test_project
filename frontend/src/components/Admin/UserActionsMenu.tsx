@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import useAuth from "@/hooks/useAuth"
+import { can } from "@/lib/permissions"
 import DeleteUser from "./DeleteUser"
 import EditUser from "./EditUser"
 
@@ -24,6 +25,13 @@ export const UserActionsMenu = ({ user }: UserActionsMenuProps) => {
     return null
   }
 
+  const canEdit = can(currentUser, "users.update")
+  const canDelete = can(currentUser, "users.delete")
+
+  if (!canEdit && !canDelete) {
+    return null
+  }
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -32,8 +40,10 @@ export const UserActionsMenu = ({ user }: UserActionsMenuProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <EditUser user={user} onSuccess={() => setOpen(false)} />
-        <DeleteUser id={user.id} onSuccess={() => setOpen(false)} />
+        {canEdit && <EditUser user={user} onSuccess={() => setOpen(false)} />}
+        {canDelete && (
+          <DeleteUser id={user.id} onSuccess={() => setOpen(false)} />
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

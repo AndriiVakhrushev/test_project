@@ -39,11 +39,20 @@ export const columns: ColumnDef<UserTableData>[] = [
     ),
   },
   {
-    accessorKey: "is_superuser",
+    accessorKey: "role",
     header: "Role",
     cell: ({ row }) => (
-      <Badge variant={row.original.is_superuser ? "default" : "secondary"}>
-        {row.original.is_superuser ? "Superuser" : "User"}
+      <Badge
+        variant={
+          row.original.role === "admin"
+            ? "default"
+            : row.original.role === "manager"
+              ? "secondary"
+              : "outline"
+        }
+        className="capitalize"
+      >
+        {row.original.role}
       </Badge>
     ),
   },
