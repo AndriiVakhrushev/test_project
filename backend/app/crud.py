@@ -4,12 +4,22 @@ from typing import Any
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.models import Item, ItemCreate, Role, User, UserCreate, UserUpdate
+
+
+def _apply_role_superuser_invariant(role: Role) -> bool:
+    # Role is the source of truth for RBAC; admins are always superusers.
+    return role == Role.admin
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
+    is_superuser = _apply_role_superuser_invariant(user_create.role)
     db_obj = User.model_validate(
-        user_create, update={"hashed_password": get_password_hash(user_create.password)}
+        user_create,
+        update={
+            "hashed_password": get_password_hash(user_create.password),
+            "is_superuser": is_superuser,
+        },
     )
     session.add(db_obj)
     session.commit()
@@ -19,11 +29,15 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
 
 def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
     user_data = user_in.model_dump(exclude_unset=True)
-    extra_data = {}
+    extra_data: dict[str, Any] = {}
     if "password" in user_data:
         password = user_data["password"]
         hashed_password = get_password_hash(password)
         extra_data["hashed_password"] = hashed_password
+    if "role" in user_data:
+        role = user_data["role"]
+        assert role is not None
+        extra_data["is_superuser"] = _apply_role_superuser_invariant(role)
     db_user.sqlmodel_update(user_data, update=extra_data)
     session.add(db_user)
     session.commit()
