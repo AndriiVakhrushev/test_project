@@ -6,3 +6,6 @@ backend/app/frontend/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Ghost deploy secrets (do not commit)
+/scripts/.env
